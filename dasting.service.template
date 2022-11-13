@@ -1,0 +1,10 @@
+[Unit]
+Description=dastin
+
+[Service]
+ExecStart=/path/to/installed/bin
+Restart=on-failure
+
+EnvironmentFile=/path/to/env.conf
+[Install]
+WantedBy=multi-user.target
