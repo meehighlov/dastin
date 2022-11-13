@@ -52,7 +52,7 @@ def notify_assignees(context: CallbackContext):
 
 
 def main() -> None:
-    updater = Updater(config.DASTIN_TOKEN)
+    updater = Updater(config.BOTTOKEN_DASTIN)
 
     dispatcher = updater.dispatcher
 
