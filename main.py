@@ -1,3 +1,7 @@
+import random
+import datetime
+
+import pytz
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
 
@@ -10,12 +14,6 @@ def start(update: Update, context: CallbackContext) -> None:
     )
 
 
-def alarm(context: CallbackContext) -> None:
-    """Send the alarm message."""
-    job = context.job
-    context.bot.send_message(job.context, text='Beep!')
-
-
 def remove_job_if_exists(name: str, context: CallbackContext) -> bool:
     """Remove job with given name. Returns whether job was removed."""
     current_jobs = context.job_queue.get_jobs_by_name(name)
@@ -26,34 +24,31 @@ def remove_job_if_exists(name: str, context: CallbackContext) -> bool:
     return True
 
 
-def set_timer(update: Update, context: CallbackContext) -> None:
-    """Add a job to the queue."""
-    chat_id = update.message.chat_id
-    try:
-        # args[0] should contain the time for the timer in seconds
-        due = int(context.args[0])
-        if due < 0:
-            update.message.reply_text('Sorry we can not go back to future!')
-            return
-
-        job_removed = remove_job_if_exists(str(chat_id), context)
-        context.job_queue.run_once(alarm, due, context=chat_id, name=str(chat_id))
-
-        text = 'Timer successfully set!'
-        if job_removed:
-            text += ' Old one was removed.'
-        update.message.reply_text(text)
-
-    except (IndexError, ValueError):
-        update.message.reply_text('Usage: /set <seconds>')
-
-
 def unset(update: Update, context: CallbackContext) -> None:
     """Remove the job if the user changed their mind."""
     chat_id = update.message.chat_id
     job_removed = remove_job_if_exists(str(chat_id), context)
     text = 'Timer successfully cancelled!' if job_removed else 'You have no active timer.'
     update.message.reply_text(text)
+
+
+def daily_job(update: Update, context: CallbackContext):
+    context.bot.send_message(chat_id=config.TEAM_CHAT_ID, text='Setting a daily notifications!')
+    tz = pytz.timezone('Europe/Moscow')
+    time = datetime.time(hour=10, minute=25, tzinfo=tz)
+    name = config.TEAM_EVENT_DAILY_NAME
+    context.job_queue.run_daily(notify_assignees, time, name=name, days=tuple(range(5)), context=update)
+
+
+def notify_assignees(context: CallbackContext):
+    place = config.TEAM_DAILY_MEETING_URL
+    notification_messages = [
+        f'Дайлик через 5 минут, предлагаю подключаться уже сейчас 😉 {place}',
+        f'Го на дайлик 👉👈 {place}',
+        f'Дайлик вот-вот начнется, чекни звук, инетренет-соединие и подключайся 😌 {place}',
+    ]
+    text = random.choice(notification_messages)
+    context.bot.send_message(chat_id=config.TEAM_CHAT_ID, text=text)
 
 
 def main() -> None:
@@ -63,8 +58,7 @@ def main() -> None:
 
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", start))
-    dispatcher.add_handler(CommandHandler("set", set_timer))
-    dispatcher.add_handler(CommandHandler("unset", unset))
+    dispatcher.add_handler(CommandHandler("set", daily_job))
 
     updater.start_polling()
     updater.idle()
