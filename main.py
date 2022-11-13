@@ -4,10 +4,12 @@ import datetime
 import pytz
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
+from auth import auth
 
 from config import config
 
 
+@auth
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
         "I'm Dastin, events reminder for daservice team, tell me about your events"
@@ -32,8 +34,9 @@ def unset(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(text)
 
 
+@auth
 def daily_job(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=config.TEAM_CHAT_ID, text='Setting a daily notifications!')
+    context.bot.send_message(chat_id=update.message.chat_id, text='Setting a daily notifications!')
     tz = pytz.timezone('Europe/Moscow')
     time = datetime.time(hour=10, minute=25, tzinfo=tz)
     name = config.TEAM_EVENT_DAILY_NAME
