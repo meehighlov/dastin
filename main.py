@@ -36,7 +36,7 @@ def unset(update: Update, context: CallbackContext) -> None:
 
 @auth
 def daily_job(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=update.message.chat_id, text='Setting a daily notifications!')
+    context.bot.send_message(chat_id=update.message.chat_id, text='Ежедневные уведомления включены 😉')
     tz = pytz.timezone('Europe/Moscow')
     time = datetime.time(hour=10, minute=25, tzinfo=tz)
     name = config.TEAM_EVENT_DAILY_NAME
@@ -47,8 +47,9 @@ def notify_assignees(context: CallbackContext):
     place = config.TEAM_DAILY_MEETING_URL
     notification_messages = [
         f'Дайлик через 5 минут, предлагаю подключаться уже сейчас 😉 {place}',
-        f'Го на дайлик 👉👈 {place}',
-        f'Дайлик вот-вот начнется, чекни звук, инетренет-соединие и подключайся 😌 {place}',
+        f'Го на дайли 👉👈 {place}',
+        f'Проснулись, улыбнулись и идем на дайлик 😌 {place}',
+        f'Кто опоздал - тот не успел, а кто успел - тот не опоздал 🐺 дайли тут: {place}',
     ]
     text = random.choice(notification_messages)
     context.bot.send_message(chat_id=config.TEAM_CHAT_ID, text=text)
