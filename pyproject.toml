@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "dastin"
+version = "0.1.0"
+description = ""
+authors = ["meehighlov"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+python-telegram-bot = "^13.14"
+pydantic = "^1.10.2"
+python-dotenv = "^0.21.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
