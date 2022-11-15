@@ -36,11 +36,22 @@ def unset(update: Update, context: CallbackContext) -> None:
 
 @auth
 def daily_job(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=update.message.chat_id, text='Ежедневные уведомления включены 😉')
+    context.bot.send_message(chat_id=update.message.chat_id, text='Уведомления о дайли включены 😉')
     tz = pytz.timezone('Europe/Moscow')
-    time = datetime.time(hour=10, minute=25, tzinfo=tz)
+    h, m = context.args[0].split(':')
+    time = datetime.time(hour=int(h), minute=int(m), tzinfo=tz)
     name = config.TEAM_EVENT_DAILY_NAME
     context.job_queue.run_daily(notify_assignees, time, name=name, days=tuple(range(5)), context=update)
+
+
+@auth
+def timesheet_reminder(update: Update, context: CallbackContext):
+    context.bot.send_message(chat_id=update.message.chat_id, text='Уведомления (пятничные) о таймшитах включены 😉')
+    tz = pytz.timezone('Europe/Moscow')
+    h, m = context.args[0].split(':')
+    time = datetime.time(hour=int(h), minute=int(m), tzinfo=tz)
+    name = config.TEAM_EVENT_TIMESHEETS_NAME
+    context.job_queue.run_daily(notify_about_ts, time, name=name, days=(4,), context=update)
 
 
 def notify_assignees(context: CallbackContext):
@@ -55,6 +66,10 @@ def notify_assignees(context: CallbackContext):
     context.bot.send_message(chat_id=config.TEAM_CHAT_ID, text=text)
 
 
+def notify_about_ts(context: CallbackContext):
+    context.bot.send_message(chat_id=config.TEAM_CHAT_ID, text='Самое время проверить таймшиты 🙌')
+
+
 def main() -> None:
     updater = Updater(config.BOTTOKEN_DASTIN)
 
@@ -63,6 +78,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", start))
     dispatcher.add_handler(CommandHandler("set", daily_job))
+    dispatcher.add_handler(CommandHandler("set_ts", timesheet_reminder))
 
     updater.start_polling()
     updater.idle()
