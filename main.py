@@ -7,8 +7,11 @@ from telegram.ext import Updater, CommandHandler, CallbackContext
 from auth import auth
 
 from config import config
+from exceptions import handle_any_error
 
 
+
+@handle_any_error
 @auth
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
@@ -26,6 +29,10 @@ def remove_job_if_exists(name: str, context: CallbackContext) -> bool:
     return True
 
 
+def is_job_exists(name: str, context: CallbackContext) -> bool:
+    return not context.job_queue.get_jobs_by_name(name)
+
+
 def unset(update: Update, context: CallbackContext) -> None:
     """Remove the job if the user changed their mind."""
     chat_id = update.message.chat_id
@@ -34,24 +41,23 @@ def unset(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(text)
 
 
+@handle_any_error
 @auth
-def daily_job(update: Update, context: CallbackContext):
+def schedule(update: Update, context: CallbackContext):
+    tz = pytz.timezone('Europe/Moscow')
+    job_name = context.args[0]
+    if is_job_exists(job_name):
+        context.bot.send_message(chat_id=update.message.chat_id, text='Напоминание с таким названием уже существует 🤔')
+        return
+
+    h, m = context.args[1].split(':')
+    days_interval = context.args[3]
+    text = context.args[4]
+
+    time = datetime.time(hour=int(h), minute=int(m), tzinfo=tz)
+    context.job_queue.run_daily(notify_assignees, time, name=job_name, days=tuple(range(5)), context=update)
+
     context.bot.send_message(chat_id=update.message.chat_id, text='Уведомления о дайли включены 😉')
-    tz = pytz.timezone('Europe/Moscow')
-    h, m = context.args[0].split(':')
-    time = datetime.time(hour=int(h), minute=int(m), tzinfo=tz)
-    name = config.TEAM_EVENT_DAILY_NAME
-    context.job_queue.run_daily(notify_assignees, time, name=name, days=tuple(range(5)), context=update)
-
-
-@auth
-def timesheet_reminder(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=update.message.chat_id, text='Уведомления (пятничные) о таймшитах включены 😉')
-    tz = pytz.timezone('Europe/Moscow')
-    h, m = context.args[0].split(':')
-    time = datetime.time(hour=int(h), minute=int(m), tzinfo=tz)
-    name = config.TEAM_EVENT_TIMESHEETS_NAME
-    context.job_queue.run_daily(notify_about_ts, time, name=name, days=(4,), context=update)
 
 
 def notify_assignees(context: CallbackContext):
@@ -77,8 +83,7 @@ def main() -> None:
 
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", start))
-    dispatcher.add_handler(CommandHandler("set", daily_job))
-    dispatcher.add_handler(CommandHandler("set_ts", timesheet_reminder))
+    dispatcher.add_handler(CommandHandler("set", schedule))
 
     updater.start_polling()
     updater.idle()
