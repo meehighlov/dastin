@@ -15,6 +15,7 @@ class Config(BaseSettings):
     TEAM_EVENT_DAILY_NAME: str
     TEAM_EVENT_TIMESHEETS_NAME: str
     ALLOWED_USERNAMES: str
+    CONVERSATION_TIMEOUT: float = 600.0
 
     @property
     def ALLOWED_USERNAMES_LIST(self):
