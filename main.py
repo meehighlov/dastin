@@ -103,7 +103,6 @@ def set_name(update: Update, context: CallbackContext) -> int:
         'примеры:',
         '10:29 пн-пт (запускать в 10:29 каждый день с пн по пт)',
         '23:59 пн (запускать в 23:59 каждый пн)',
-        '23:59 (запустить сегодня в 23:59)',
     ])
 
     context.bot.send_message(chat_id=update.message.chat_id, text=text)
