@@ -13,7 +13,6 @@ from auth import auth
 
 from config import config
 
-    
 
 class SetReminderStates(int, Enum):
     NAME = 1
@@ -79,21 +78,6 @@ def set_(update: Update, context: CallbackContext) -> int:
     context.bot.send_message(chat_id=update.message.chat_id, text='Введи название напоминания')
 
     return SetReminderStates.NAME
-
-    # tz = pytz.timezone('Europe/Moscow')
-    # job_name = context.args[0]
-    # if is_job_exists(job_name):
-    #     context.bot.send_message(chat_id=update.message.chat_id, text='Напоминание с таким названием уже существует 🤔')
-    #     return
-
-    # h, m = context.args[1].split(':')
-    # days_interval = context.args[3]
-    # text = context.args[4]
-
-    # time = datetime.time(hour=int(h), minute=int(m), tzinfo=tz)
-    # context.job_queue.run_daily(notify_assignees, time, name=job_name, days=tuple(range(5)), context=update)
-
-    # context.bot.send_message(chat_id=update.message.chat_id, text='Уведомления о дайли включены 😉')
 
 
 # @handle_any_error
@@ -198,6 +182,26 @@ def notify_about_ts(context: CallbackContext):
     context.bot.send_message(chat_id=config.TEAM_CHAT_ID, text='Самое время проверить таймшиты 🙌')
 
 
+def show_all_tasks(update: Update, context: CallbackContext):
+    when_q_is_empty = 'Напоминаний пока нет'
+    text = '\n'.join([j.name for j in context.job_queue.jobs()]) or when_q_is_empty
+    context.bot.send_message(chat_id=update.message.chat_id, text=text)
+
+
+def remove_task_by_name(update: Update, context: CallbackContext):
+    name = context.args[0]
+    jobs = context.job_queue.get_jobs_by_name(name)
+
+    if not jobs:
+        context.bot.send_message(chat_id=update.message.chat_id, text=f'Нет напоминаний с названием {name}')
+        return
+
+    for job in jobs:
+        job.schedule_removal()
+
+    context.bot.send_message(chat_id=update.message.chat_id, text=f'Напоминание {name} удалено')
+
+
 handle = ConversationHandler(
     entry_points=[CommandHandler('set', set_)],
     states={
@@ -224,8 +228,10 @@ def main() -> None:
 
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("help", help_))
+    dispatcher.add_handler(CommandHandler('start', start))
+    dispatcher.add_handler(CommandHandler('help', help_))
+    dispatcher.add_handler(CommandHandler('all', show_all_tasks))
+    dispatcher.add_handler(CommandHandler('rm', remove_task_by_name))
     dispatcher.add_handler(handle)
 
     dispatcher.add_error_handler(error_handler)
