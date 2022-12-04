@@ -13,21 +13,12 @@ from auth import auth
 
 from config import config
 
-
-
-class TextFilter(Filters.text):
-    
-    def filter(self, message):
-        pass
     
 
 class SetReminderStates(int, Enum):
     NAME = 1
-    MESSAGE_ABOUT_TIME = 2
     TIME = 3
-    MESSAGE_ABOUT_TEXT = 4
     TEXT = 5
-    SUCCESS = 6
 
 
 @dataclass
@@ -117,19 +108,13 @@ def set_name(update: Update, context: CallbackContext) -> int:
 
     context.user_data[user_id] = Reminder(name=reminder_name)
 
-    return SetReminderStates.MESSAGE_ABOUT_TIME
-
-
-# @handle_any_error
-def show_message_about_time(update: Update, context: CallbackContext) -> int:
-    text = '''
-        Введи тайминги
-
-        примеры:
-        10:29 пн-пт (запускать в 10:29 каждый день с пн по пт)
-        23:59 пн (запускать в 23:59 каждый пн)
-        23:59 (запустить сегодня в 23:59)
-    '''
+    text = '\n'.join([
+        'Введи тайминги', '',
+        'примеры:',
+        '10:29 пн-пт (запускать в 10:29 каждый день с пн по пт)',
+        '23:59 пн (запускать в 23:59 каждый пн)',
+        '23:59 (запустить сегодня в 23:59)',
+    ])
 
     context.bot.send_message(chat_id=update.message.chat_id, text=text)
 
@@ -161,11 +146,6 @@ def save_reminder_time(update: Update, context: CallbackContext) -> int:
     beg, end = day_to_num[interval[0]], day_to_num[interval[1]]
     context.user_data[user_id].days_interval = (beg, end)
 
-    return SetReminderStates.MESSAGE_ABOUT_TEXT
-
-
-# @handle_any_error
-def show_message_about_text(update: Update, context: CallbackContext) -> int:
     context.bot.send_message(chat_id=update.message.chat_id, text='Введи текст напоминалки')
 
     return SetReminderStates.TEXT
@@ -191,11 +171,6 @@ def save_reminder_info(update: Update, context: CallbackContext) -> int:
     notify = partial(notifyer, reminder)
     context.job_queue.run_daily(notify, time, name=name, days=days, context=update)
 
-    return SetReminderStates.SUCCESS
-
-
-# @handle_any_error
-def show_success(update: Update, context: CallbackContext) -> int:
     context.bot.send_message(chat_id=update.message.chat_id, text='Напоминание сохранено')
     return ConversationHandler.END
 
@@ -227,11 +202,8 @@ handle = ConversationHandler(
     entry_points=[CommandHandler('set', set_)],
     states={
         SetReminderStates.NAME: [MessageHandler(Filters.text, set_name)],
-        SetReminderStates.MESSAGE_ABOUT_TIME: [MessageHandler(Filters.text, show_message_about_time)],
         SetReminderStates.TIME: [MessageHandler(Filters.text, save_reminder_time)],
-        SetReminderStates.MESSAGE_ABOUT_TEXT: [MessageHandler(Filters.text, show_message_about_text)],
         SetReminderStates.TEXT: [MessageHandler(Filters.text, save_reminder_info)],
-        SetReminderStates.SUCCESS: [MessageHandler(Filters.text, show_success)],
     },
     fallbacks=[MessageHandler(Filters.text, fallback)],
     allow_reentry=True,
