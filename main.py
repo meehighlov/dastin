@@ -1,4 +1,5 @@
 import json
+import logging
 import traceback
 from dataclasses import dataclass
 from enum import Enum
@@ -14,6 +15,18 @@ from auth import auth
 from config import config
 
 
+logger = logging.getLogger(__name__)
+
+
+def init_logging():
+    logging.basicConfig(
+        filename=config.LOG_FILE,
+        encoding='utf-8',
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
+
 class SetReminderStates(int, Enum):
     NAME = 1
     TIME = 3
@@ -26,13 +39,14 @@ class Reminder:
     time: str = None
     days_interval: tuple = None
     text: str = None
+    run_once: bool = False
 
 
 # @handle_any_error
 # @auth
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(
-        "I'm Dastin, events reminder for daservice team, tell me about your events"
+        "Привет! Я - dastin, вызови меню либо /help, чтобы посмотреть, что я умею 😉"
     )
 
 
@@ -62,14 +76,6 @@ def remove_job_if_exists(name: str, context: CallbackContext) -> bool:
 
 def is_job_exists(name: str, context: CallbackContext) -> bool:
     return len(context.job_queue.get_jobs_by_name(name)) > 0
-
-
-def unset(update: Update, context: CallbackContext) -> None:
-    """Remove the job if the user changed their mind."""
-    chat_id = update.message.chat_id
-    job_removed = remove_job_if_exists(str(chat_id), context)
-    text = 'Timer successfully cancelled!' if job_removed else 'You have no active timer.'
-    update.message.reply_text(text)
 
 
 # @handle_any_error
@@ -110,14 +116,22 @@ def save_reminder_time(update: Update, context: CallbackContext) -> int:
     text = update.message.text
     tz = pytz.timezone('Europe/Moscow')
 
-    time_, interval = text.split()
-
     user_id = update.message.from_user.id
+
+    timing = text.split()
+    time_, interval = timing[0], None
+    if len(timing) == 2:
+        time_, interval = timing
 
     hour, minute = time_.split(':')
     hour = int(hour)
     minute = int(minute)
     context.user_data[user_id].time = datetime.time(hour=hour, minute=minute, tzinfo=tz)
+
+    if interval is None:
+        context.user_data[user_id].run_once = True
+        context.bot.send_message(chat_id=update.message.chat_id, text='Введи текст напоминалки')
+        return SetReminderStates.TEXT
 
     day_to_num = {'пн': 0, 'вт': 1, 'ср': 2, 'чт': 3, 'пт': 4, 'сб': 5, 'вс': 6}
 
@@ -125,13 +139,13 @@ def save_reminder_time(update: Update, context: CallbackContext) -> int:
     if len(interval) == 1:
         day_num = day_to_num[interval[0]]
         context.user_data[user_id].days_interval = (day_num,)
-        return SetReminderStates.MESSAGE_ABOUT_TEXT
+        context.bot.send_message(chat_id=update.message.chat_id, text='Введи текст напоминалки, который нужно показать всем')
+        return SetReminderStates.TEXT
 
     beg, end = day_to_num[interval[0]], day_to_num[interval[1]]
     context.user_data[user_id].days_interval = (beg, end)
 
     context.bot.send_message(chat_id=update.message.chat_id, text='Введи текст напоминалки')
-
     return SetReminderStates.TEXT
 
 
@@ -142,10 +156,10 @@ def notifyer(reminder: Reminder, context: CallbackContext):
 # @handle_any_error
 def save_reminder_info(update: Update, context: CallbackContext) -> int:
     reminder_text = update.message.text
-    
+
     user_id = update.message.from_user.id
 
-    reminder = context.user_data[user_id]
+    reminder: Reminder = context.user_data[user_id]
     reminder.text = reminder_text
 
     name = reminder.name
@@ -153,15 +167,19 @@ def save_reminder_info(update: Update, context: CallbackContext) -> int:
     days = reminder.days_interval
 
     notify = partial(notifyer, reminder)
-    context.job_queue.run_daily(notify, time, name=name, days=days, context=update)
 
-    context.bot.send_message(chat_id=update.message.chat_id, text='Напоминание сохранено')
+    if reminder.run_once:
+        context.job_queue.run_once(notify, time, name=name, context=update)
+    else:
+        context.job_queue.run_daily(notify, time, name=name, days=days, context=update)
+
+    context.bot.send_message(chat_id=update.message.chat_id, text='Напоминание сохранено 🙌')
     return ConversationHandler.END
 
 
 # @handle_any_error
 def fallback(update: Update, context: CallbackContext) -> int:
-    context.bot.send_message(chat_id=update.message.chat_id, text='я сломався, попробуй сначала')
+    context.bot.send_message(chat_id=update.message.chat_id, text='я сломався, попробуй сначала 😅')
 
     return ConversationHandler.END
 
@@ -184,7 +202,7 @@ def notify_about_ts(context: CallbackContext):
 
 def show_all_tasks(update: Update, context: CallbackContext):
     when_q_is_empty = 'Напоминаний пока нет'
-    text = '\n'.join([j.name for j in context.job_queue.jobs()]) or when_q_is_empty
+    text = '\n'.join([f'{j.name}, ближайший запуск: {j.next_t}' for j in context.job_queue.jobs()]) or when_q_is_empty
     context.bot.send_message(chat_id=update.message.chat_id, text=text)
 
 
@@ -220,7 +238,7 @@ def error_handler(update: Update, context: CallbackContext):
     tb_string = "".join(tb_list)
     update_str = update.to_dict() if isinstance(update, Update) else str(update)
     message = json.dumps(update_str, indent=2, ensure_ascii=False) + ' with treaceback: ' + tb_string
-    print(message)
+    logger.error(message)
 
 
 def main() -> None:
