@@ -42,17 +42,21 @@ class Reminder:
     run_once: bool = False
 
 
-# @handle_any_error
-# @auth
 def start(update: Update, context: CallbackContext) -> None:
+    username = update.message.from_user.name
+    if username not in config.ALLOWED_USERNAMES_LIST:
+        return
+
     update.message.reply_text(
         "Привет! Я - dastin, вызови меню либо /help, чтобы посмотреть, что я умею 😉"
     )
 
 
-# @handle_any_error
-# @auth
 def help_(update: Update, context: CallbackContext):
+    username = update.message.from_user.name
+    if username not in config.ALLOWED_USERNAMES_LIST:
+        return
+
     all_commands = [
         '/set - set new reminder',
         '/rm - remove exist reminder',
@@ -78,15 +82,16 @@ def is_job_exists(name: str, context: CallbackContext) -> bool:
     return len(context.job_queue.get_jobs_by_name(name)) > 0
 
 
-# @handle_any_error
-# @auth
 def set_(update: Update, context: CallbackContext) -> int:
+    username = update.message.from_user.name
+    if username not in config.ALLOWED_USERNAMES_LIST:
+        return
+
     context.bot.send_message(chat_id=update.message.chat_id, text='Введи название напоминания')
 
     return SetReminderStates.NAME
 
 
-# @handle_any_error
 def set_name(update: Update, context: CallbackContext) -> int:
     reminder_name = update.message.text
 
@@ -183,29 +188,21 @@ def fallback(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
-def notify_assignees(context: CallbackContext):
-    place = config.TEAM_DAILY_MEETING_URL
-    notification_messages = [
-        f'Дайлик через 5 минут, предлагаю подключаться уже сейчас 😉 {place}',
-        f'Го на дайли 👉👈 {place}',
-        f'Проснулись, улыбнулись и идем на дайлик 😌 {place}',
-        f'Кто опоздал - тот не успел, а кто успел - тот не опоздал 🐺 дайли тут: {place}',
-    ]
-    text = random.choice(notification_messages)
-    context.bot.send_message(chat_id=config.TEAM_CHAT_ID, text=text)
-
-
-def notify_about_ts(context: CallbackContext):
-    context.bot.send_message(chat_id=config.TEAM_CHAT_ID, text='Самое время проверить таймшиты 🙌')
-
-
 def show_all_tasks(update: Update, context: CallbackContext):
+    username = update.message.from_user.name
+    if username not in config.ALLOWED_USERNAMES_LIST:
+        return
+
     when_q_is_empty = 'Напоминаний пока нет'
     text = '\n'.join([f'{j.name}, ближайший запуск: {j.next_t}' for j in context.job_queue.jobs()]) or when_q_is_empty
     context.bot.send_message(chat_id=update.message.chat_id, text=text)
 
 
 def remove_task_by_name(update: Update, context: CallbackContext):
+    username = update.message.from_user.name
+    if username not in config.ALLOWED_USERNAMES_LIST:
+        return
+
     name = context.args[0]
     jobs = context.job_queue.get_jobs_by_name(name)
 
