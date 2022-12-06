@@ -142,7 +142,7 @@ def save_reminder_time(update: Update, context: CallbackContext) -> int:
         return SetReminderStates.TEXT
 
     beg, end = day_to_num[interval[0]], day_to_num[interval[1]]
-    context.user_data[user_id].days_interval = (beg, end)
+    context.user_data[user_id].days_interval = tuple(range((beg, end + 1)))
 
     context.bot.send_message(chat_id=update.message.chat_id, text='Введи текст напоминалки')
     return SetReminderStates.TEXT
